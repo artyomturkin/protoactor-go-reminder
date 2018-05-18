@@ -1,0 +1,21 @@
+syntax = "proto3";
+package reminder;
+
+import "actor.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+message Remind {
+    actor.PID Receiver = 1;
+    google.protobuf.Timestamp At = 2;
+    google.protobuf.Any Message = 3;
+}
+
+message Reminded {
+    google.protobuf.Timestamp At = 2;    
+}
+
+message Snapshot {
+    repeated Remind Reminds = 1;
+    google.protobuf.Timestamp At = 2;
+}
