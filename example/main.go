@@ -1,18 +1,20 @@
-package reminder_test
+package main
 
 import (
+	"fmt"
 	"sync"
-	"testing"
 	"time"
 
-	"github.com/AsynkronIT/protoactor-go/persistence"
-
 	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/AsynkronIT/protoactor-go/persistence"
+	"github.com/gogo/protobuf/types"
+
 	reminder "github.com/artyomturkin/protoactor-go-reminder"
+
 	msgs "github.com/artyomturkin/protoactor-go-reminder/proto"
-	protoTypes "github.com/gogo/protobuf/types"
 )
 
+// *** Example Actor ***
 type receiver struct {
 	wg *sync.WaitGroup
 }
@@ -20,6 +22,7 @@ type receiver struct {
 func (r *receiver) Receive(ctx actor.Context) {
 	switch ctx.Message().(type) {
 	case *msgs.Reminded:
+		fmt.Printf("Got a reminder\n")
 		r.wg.Done()
 	}
 }
@@ -30,6 +33,7 @@ func producer(wg *sync.WaitGroup) func() actor.Actor {
 	}
 }
 
+// *** Example Persistence Store ***
 type provider struct {
 	providerState persistence.ProviderState
 }
@@ -44,45 +48,42 @@ func (p *provider) GetState() persistence.ProviderState {
 	return p.providerState
 }
 
-//TestReminder test will fail with `all goroutines asleep` if reminder deos not work properly
-func TestReminder(t *testing.T) {
+// *** Example ***
+func main() {
+	//Create reminder actor with 10 ms trigger window and InMemory Persistence store
 	remProps := actor.FromProducer(reminder.Producer(10 * time.Millisecond)).
 		WithMiddleware(persistence.Using(newProvider(5)))
-	wg := &sync.WaitGroup{}
-	recProps := actor.FromProducer(producer(wg))
-
 	rem, err := actor.SpawnNamed(remProps, "reminder")
 	if err != nil {
-		t.Fatalf("failed to spawn reminder: %v", err)
+		fmt.Printf("failed to spawn reminder: %v", err)
 	}
+
+	//Create and actor that will receive reminder
+	wg := &sync.WaitGroup{}
+	recProps := actor.FromProducer(producer(wg))
 	rec, err := actor.SpawnNamed(recProps, "receiver")
 	if err != nil {
-		t.Fatalf("failed to spawn receiver: %v", err)
+		fmt.Printf("failed to spawn receiver: %v", err)
 	}
 
-	ti, _ := protoTypes.TimestampProto(time.Now().Add(1 * time.Millisecond))
-	msg, _ := protoTypes.MarshalAny(&msgs.Reminded{At: ti})
+	//Create timestamp of when reminder should trigger
+	ti, _ := types.TimestampProto(time.Now().Add(1 * time.Millisecond))
+	//Create reminder payload (reusing Reminded message for example)
+	msg, _ := types.MarshalAny(&msgs.Reminded{At: ti})
 
-	rems := 1
-	wg.Add(rems)
-	for i := 0; i < rems; i++ {
-		rem.Tell(&msgs.Remind{
-			Receiver: rec,
-			At:       ti,
-			Message:  msg,
-		})
-	}
+	//Tell reminder actor to handle reminder. Use waitgroup to sync with receiver actor
+	wg.Add(1)
+	rem.Tell(&msgs.Remind{
+		Receiver: rec,
+		At:       ti,
+		Message:  msg,
+	})
 	wg.Wait()
 
-	rems = 10
-	wg.Add(rems)
-	for i := 0; i < rems; i++ {
-		time.Sleep(1 * time.Millisecond)
-		rem.Tell(&msgs.Remind{
-			Receiver: rec,
-			At:       ti,
-			Message:  msg,
-		})
-	}
-	wg.Wait()
+	//Shutdown all
+	rec.GracefulPoison()
+	rem.GracefulPoison()
+
+	// Output:
+	// Got a reminder
 }
