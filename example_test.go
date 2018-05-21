@@ -38,7 +38,7 @@ func exampleActorProducer(wg *sync.WaitGroup) func() actor.Actor {
 	}
 }
 
-func ExampleReminder() {
+func ExampleMiddleware() {
 	remProps := actor.FromProducer(reminder.Producer(10 * time.Millisecond)).
 		WithMiddleware(persistence.Using(newProvider(5)))
 	rem, err := actor.SpawnNamed(remProps, "reminder")
@@ -49,7 +49,7 @@ func ExampleReminder() {
 
 	wg := &sync.WaitGroup{}
 	recProps := actor.FromProducer(exampleActorProducer(wg)).
-		WithMiddleware(reminder.Reminder(rem))
+		WithMiddleware(reminder.Middleware(rem))
 	rec, err := actor.SpawnNamed(recProps, "receiver")
 	if err != nil {
 		fmt.Printf("failed to spawn receiver: %v", err)

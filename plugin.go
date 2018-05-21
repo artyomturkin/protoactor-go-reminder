@@ -7,8 +7,8 @@ import (
 	protoActor "github.com/AsynkronIT/protoactor-go/actor"
 )
 
-//Reminder middleware
-func Reminder(reminder *protoActor.PID) func(next protoActor.ActorFunc) protoActor.ActorFunc {
+//Middleware middleware
+func Middleware(reminder *protoActor.PID) func(next protoActor.ActorFunc) protoActor.ActorFunc {
 	return func(next protoActor.ActorFunc) protoActor.ActorFunc {
 		return func(ctx protoActor.Context) {
 			switch ctx.Message().(type) {

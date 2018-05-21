@@ -46,7 +46,7 @@ func TestPlugin(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	recProps := actor.FromProducer(testActorProducer(wg)).
-		WithMiddleware(reminder.Reminder(rem))
+		WithMiddleware(reminder.Middleware(rem))
 	rec, err := actor.SpawnNamed(recProps, "receiver")
 	if err != nil {
 		t.Fatalf("failed to spawn receiver: %v", err)
