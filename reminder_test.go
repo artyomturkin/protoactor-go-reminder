@@ -17,10 +17,20 @@ type receiver struct {
 	wg *sync.WaitGroup
 }
 
+var (
+	mu      sync.Mutex = sync.Mutex{}
+	counter int        = 0
+)
+
 func (r *receiver) Receive(ctx actor.Context) {
-	switch ctx.Message().(type) {
-	case *msgs.Reminded:
-		r.wg.Done()
+	switch msg := ctx.Message().(type) {
+	case *msgs.Remind:
+		if msg.Name == "hello" {
+			mu.Lock()
+			counter = counter + 1
+			mu.Unlock()
+			r.wg.Done()
+		}
 	}
 }
 
@@ -61,15 +71,14 @@ func TestReminder(t *testing.T) {
 	}
 
 	ti, _ := protoTypes.TimestampProto(time.Now().Add(1 * time.Millisecond))
-	msg, _ := protoTypes.MarshalAny(&msgs.Reminded{At: ti})
 
 	rems := 1
 	wg.Add(rems)
 	for i := 0; i < rems; i++ {
-		rem.Tell(&msgs.Remind{
+		rem.Tell(&msgs.Reminder{
 			Receiver: rec,
 			At:       ti,
-			Message:  msg,
+			Name:     "hello",
 		})
 	}
 	wg.Wait()
@@ -78,11 +87,35 @@ func TestReminder(t *testing.T) {
 	wg.Add(rems)
 	for i := 0; i < rems; i++ {
 		time.Sleep(1 * time.Millisecond)
-		rem.Tell(&msgs.Remind{
+		rem.Tell(&msgs.Reminder{
 			Receiver: rec,
 			At:       ti,
-			Message:  msg,
+			Name:     "hello",
 		})
 	}
 	wg.Wait()
+
+	//Test collation
+	rems = 2
+	counter = 0
+	wg.Add(1)
+	for i := 0; i < rems; i++ {
+		time.Sleep(1 * time.Millisecond)
+		ti, _ = protoTypes.TimestampProto(time.Now().Add(1 * time.Millisecond))
+		rem.Tell(&msgs.Reminder{
+			Receiver: rec,
+			At:       ti,
+			Name:     "hello",
+			Collate:  true,
+		})
+	}
+	wg.Wait()
+	time.Sleep(50 * time.Millisecond)
+
+	if counter != 1 {
+		t.Errorf("collation failed! expected 1 got %d", counter)
+	}
+
+	rem.GracefulPoison()
+	rec.GracefulPoison()
 }

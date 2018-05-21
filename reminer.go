@@ -2,13 +2,11 @@ package reminder
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	protoActor "github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/AsynkronIT/protoactor-go/persistence"
 	msgs "github.com/artyomturkin/protoactor-go-reminder/proto"
-	"github.com/gogo/protobuf/proto"
 	protoTypes "github.com/gogo/protobuf/types"
 )
 
@@ -17,7 +15,7 @@ type actor struct {
 	self *protoActor.PID
 
 	reminded time.Time
-	reminds  []*msgs.Remind
+	reminds  []*msgs.Reminder
 
 	triggersAt  time.Time
 	cancelDelay func()
@@ -35,9 +33,17 @@ var _ protoActor.Actor = (*actor)(nil)
 func (a *actor) Receive(ctx protoActor.Context) {
 	switch msg := ctx.Message().(type) {
 	case *protoActor.Started:
-		a.reminds = []*msgs.Remind{}
+		a.reminds = []*msgs.Reminder{}
 		a.self = ctx.Self()
-	case *msgs.Remind:
+	case *msgs.Reminder:
+		if msg.Collate {
+			for i, r := range a.reminds {
+				if r.Name == msg.Name && r.Receiver.Equal(msg.Receiver) && r.Collate {
+					a.reminds = append(a.reminds[:i], a.reminds[i+1:]...)
+				}
+			}
+		}
+
 		first := a.insertRemind(msg)
 
 		if !a.Recovering() {
@@ -55,17 +61,10 @@ func (a *actor) Receive(ctx protoActor.Context) {
 
 		if !a.Recovering() {
 			for _, rem := range rems {
-				tn, _ := protoTypes.AnyMessageName(rem.Message)
-
-				t1 := proto.MessageType(tn) //get the go type from the proto type name
-				t := t1.Elem()
-				intPtr := reflect.New(t)                       //create an instance of the type
-				instance := intPtr.Interface().(proto.Message) //get the message data from the envelope
-
-				err := protoTypes.UnmarshalAny(rem.Message, instance)
-				if err == nil {
-					rem.Receiver.Tell(instance)
+				m := &msgs.Remind{
+					Name: rem.Name,
 				}
+				rem.Receiver.Tell(m)
 			}
 			a.PersistReceive(msg)
 		}
@@ -89,9 +88,9 @@ func (a *actor) Receive(ctx protoActor.Context) {
 	}
 }
 
-func (a *actor) removeStale(msg *msgs.Reminded) []*msgs.Remind {
+func (a *actor) removeStale(msg *msgs.Reminded) []*msgs.Reminder {
 	t, _ := protoTypes.TimestampFromProto(msg.At)
-	stale := []*msgs.Remind{}
+	stale := []*msgs.Reminder{}
 	found := false
 	for i, rem := range a.reminds {
 		curT, _ := protoTypes.TimestampFromProto(rem.At)
@@ -104,13 +103,13 @@ func (a *actor) removeStale(msg *msgs.Reminded) []*msgs.Remind {
 	}
 	if !found {
 		stale = a.reminds
-		a.reminds = []*msgs.Remind{}
+		a.reminds = []*msgs.Reminder{}
 	}
 
 	return stale
 }
 
-func (a *actor) insertRemind(msg *msgs.Remind) (first bool) {
+func (a *actor) insertRemind(msg *msgs.Reminder) (first bool) {
 	inserted := false
 	first = false
 	for i, rem := range a.reminds {
