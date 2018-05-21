@@ -113,7 +113,7 @@ func TestReminder(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	if counter != 1 {
-		t.Errorf("collation failed")
+		t.Errorf("collation failed! expected 1 got %d", counter)
 	}
 
 	rem.GracefulPoison()

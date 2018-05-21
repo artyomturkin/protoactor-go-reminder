@@ -24,35 +24,54 @@ func main() {
 	rem, err := actor.SpawnNamed(remProps, "reminder")
 	if err != nil {
 		fmt.Printf("failed to spawn reminder: %v", err)
+		os.Exit(1)
 	}
 
 	.....
 }
 ```
 
-Use `import "github.com/gogo/protobuf/types"` package to create reminder time
+Define actor, that can setup and receive reminders
+```go
+type exampleActor struct {
+	reminder.Mixin
+}
+
+type ExampleMessage struct{}
+
+func (r *exampleActor) Receive(ctx actor.Context) {
+	switch msg := ctx.Message().(type) {
+	case *ExampleMessage:
+		r.RemindMe("hello", time.Now().Add(1*time.Millisecond), false)
+	case *msgs.Remind:
+		if msg.Name == "hello" {
+			fmt.Printf("Received reminder %s\n", msg.Name)
+		}
+	}
+}
+```
+
+Create example actor instance
 ```go
 func main() {
 	.....
-
-	//Create timestamp of when reminder should trigger
-	ti, _ := types.TimestampProto(time.Now().Add(1 * time.Millisecond))
-
+	recProps := actor.FromProducer(exampleActorProducer).
+		WithMiddleware(reminder.Reminder(rem))
+	rec, err := actor.SpawnNamed(recProps, "receiver")
+	if err != nil {
+		fmt.Printf("failed to spawn receiver: %v", err)
+		os.Exit(1)
+	}
 	.....
 }
 ```
 
-`Tell` reminder actor to handle a remind
+`Tell` example actor to setup a remind for itself
 ```go
 func main() {
 	.....
 
-	rem.Tell(&msgs.Reminder{
-		Receiver: rec,
-		At:	     ti,
-		Name:    "hello",
-		Collate: false,
-	})
+	rec.Tell(&ExampleMessage{})
 	
 	.....
 }
