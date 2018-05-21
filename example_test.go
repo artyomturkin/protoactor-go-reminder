@@ -9,7 +9,6 @@ import (
 	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/AsynkronIT/protoactor-go/persistence"
 	reminder "github.com/artyomturkin/protoactor-go-reminder"
-	msgs "github.com/artyomturkin/protoactor-go-reminder/proto"
 )
 
 type exampleActor struct {
@@ -24,7 +23,7 @@ func (r *exampleActor) Receive(ctx actor.Context) {
 	switch msg := ctx.Message().(type) {
 	case *ExampleMessage:
 		r.RemindMe("hello", 1*time.Millisecond, false)
-	case *msgs.Remind:
+	case *reminder.Remind:
 		if msg.Name == "hello" {
 			fmt.Printf("Received reminder %s\n", msg.Name)
 			r.wg.Done()

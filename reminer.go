@@ -4,18 +4,17 @@ import (
 	"context"
 	"time"
 
-	protoActor "github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/AsynkronIT/protoactor-go/persistence"
-	msgs "github.com/artyomturkin/protoactor-go-reminder/proto"
-	protoTypes "github.com/gogo/protobuf/types"
+	"github.com/gogo/protobuf/types"
 )
 
-type actor struct {
+type reminderActor struct {
 	persistence.Mixin
-	self *protoActor.PID
+	self *actor.PID
 
 	reminded time.Time
-	reminds  []*msgs.Reminder
+	reminds  []*Reminder
 
 	triggersAt  time.Time
 	cancelDelay func()
@@ -24,18 +23,18 @@ type actor struct {
 }
 
 //Producer Reminder ActorProducer
-func Producer(window time.Duration) func() protoActor.Actor {
-	return func() protoActor.Actor { return &actor{window: window} }
+func Producer(window time.Duration) func() actor.Actor {
+	return func() actor.Actor { return &reminderActor{window: window} }
 }
 
-var _ protoActor.Actor = (*actor)(nil)
+var _ actor.Actor = (*reminderActor)(nil)
 
-func (a *actor) Receive(ctx protoActor.Context) {
+func (a *reminderActor) Receive(ctx actor.Context) {
 	switch msg := ctx.Message().(type) {
-	case *protoActor.Started:
-		a.reminds = []*msgs.Reminder{}
+	case *actor.Started:
+		a.reminds = []*Reminder{}
 		a.self = ctx.Self()
-	case *msgs.Reminder:
+	case *Reminder:
 		a.collate(msg)
 
 		first := a.insertRemind(msg)
@@ -44,37 +43,37 @@ func (a *actor) Receive(ctx protoActor.Context) {
 			a.PersistReceive(msg)
 
 			if first {
-				t, _ := protoTypes.TimestampFromProto(msg.At)
+				t, _ := types.TimestampFromProto(msg.At)
 				delay := t.Add(a.window).Sub(time.Now())
 				a.setDelay(delay)
 			}
 		}
-	case *msgs.Reminded:
+	case *Reminded:
 		rems := a.removeStale(msg)
 		a.cancelDelay = nil
 
 		if !a.Recovering() {
 			for _, rem := range rems {
-				m := &msgs.Remind{
+				m := &Remind{
 					Name: rem.Name,
 				}
 				rem.Receiver.Tell(m)
 			}
 			a.PersistReceive(msg)
 		}
-	case *msgs.Snapshot:
+	case *Snapshot:
 		a.reminds = msg.Reminds
-		t, _ := protoTypes.TimestampFromProto(msg.At)
+		t, _ := types.TimestampFromProto(msg.At)
 		a.reminded = t
 	case *persistence.ReplayComplete:
 		if len(a.reminds) > 0 {
-			t, _ := protoTypes.TimestampFromProto(a.reminds[0].At)
+			t, _ := types.TimestampFromProto(a.reminds[0].At)
 			delay := t.Add(a.window).Sub(time.Now())
 			a.setDelay(delay)
 		}
 	case *persistence.RequestSnapshot:
-		t, _ := protoTypes.TimestampProto(a.reminded)
-		snap := &msgs.Snapshot{
+		t, _ := types.TimestampProto(a.reminded)
+		snap := &Snapshot{
 			Reminds: a.reminds,
 			At:      t,
 		}
@@ -82,12 +81,12 @@ func (a *actor) Receive(ctx protoActor.Context) {
 	}
 }
 
-func (a *actor) removeStale(msg *msgs.Reminded) []*msgs.Reminder {
-	t, _ := protoTypes.TimestampFromProto(msg.At)
-	stale := []*msgs.Reminder{}
+func (a *reminderActor) removeStale(msg *Reminded) []*Reminder {
+	t, _ := types.TimestampFromProto(msg.At)
+	stale := []*Reminder{}
 	found := false
 	for i, rem := range a.reminds {
-		curT, _ := protoTypes.TimestampFromProto(rem.At)
+		curT, _ := types.TimestampFromProto(rem.At)
 		if t.Before(curT) {
 			found = true
 			stale = a.reminds[:i+1]
@@ -97,18 +96,18 @@ func (a *actor) removeStale(msg *msgs.Reminded) []*msgs.Reminder {
 	}
 	if !found {
 		stale = a.reminds
-		a.reminds = []*msgs.Reminder{}
+		a.reminds = []*Reminder{}
 	}
 
 	return stale
 }
 
-func (a *actor) insertRemind(msg *msgs.Reminder) (first bool) {
+func (a *reminderActor) insertRemind(msg *Reminder) (first bool) {
 	inserted := false
 	first = false
 	for i, rem := range a.reminds {
-		msgT, _ := protoTypes.TimestampFromProto(msg.At)
-		curT, _ := protoTypes.TimestampFromProto(rem.At)
+		msgT, _ := types.TimestampFromProto(msg.At)
+		curT, _ := types.TimestampFromProto(rem.At)
 		if msgT.Before(curT) {
 			newRems := append(a.reminds[:i], msg)
 			a.reminds = append(newRems, a.reminds[i:]...)
@@ -126,7 +125,7 @@ func (a *actor) insertRemind(msg *msgs.Reminder) (first bool) {
 	return first || len(a.reminds) == 1
 }
 
-func (a *actor) setDelay(t time.Duration) {
+func (a *reminderActor) setDelay(t time.Duration) {
 	triggersAt := time.Now().Add(t)
 	if a.cancelDelay == nil || (triggersAt.Before(a.triggersAt)) {
 		if a.cancelDelay != nil {
@@ -142,8 +141,8 @@ func (a *actor) setDelay(t time.Duration) {
 			case <-ctx.Done():
 				break
 			case <-time.After(t):
-				ts, _ := protoTypes.TimestampProto(triggersAt)
-				a.self.Tell(&msgs.Reminded{
+				ts, _ := types.TimestampProto(triggersAt)
+				a.self.Tell(&Reminded{
 					At: ts,
 				})
 				break
@@ -152,7 +151,7 @@ func (a *actor) setDelay(t time.Duration) {
 	}
 }
 
-func (a *actor) collate(msg *msgs.Reminder) {
+func (a *reminderActor) collate(msg *Reminder) {
 	if msg.Collate {
 		for i, r := range a.reminds {
 			if r.Name == msg.Name && r.Receiver.Equal(msg.Receiver) && r.Collate {
