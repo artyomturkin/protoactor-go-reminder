@@ -17,10 +17,18 @@ type receiver struct {
 	wg *sync.WaitGroup
 }
 
+var (
+	mu      sync.Mutex = sync.Mutex{}
+	counter int        = 0
+)
+
 func (r *receiver) Receive(ctx actor.Context) {
 	switch msg := ctx.Message().(type) {
 	case *msgs.Remind:
 		if msg.Name == "hello" {
+			mu.Lock()
+			counter = counter + 1
+			mu.Unlock()
 			r.wg.Done()
 		}
 	}
@@ -86,4 +94,28 @@ func TestReminder(t *testing.T) {
 		})
 	}
 	wg.Wait()
+
+	//Test collation
+	rems = 2
+	counter = 0
+	wg.Add(1)
+	for i := 0; i < rems; i++ {
+		time.Sleep(1 * time.Millisecond)
+		ti, _ = protoTypes.TimestampProto(time.Now().Add(1 * time.Millisecond))
+		rem.Tell(&msgs.Reminder{
+			Receiver: rec,
+			At:       ti,
+			Name:     "hello",
+			Collate:  true,
+		})
+	}
+	wg.Wait()
+	time.Sleep(50 * time.Millisecond)
+
+	if counter != 1 {
+		t.Errorf("collation failed")
+	}
+
+	rem.GracefulPoison()
+	rec.GracefulPoison()
 }

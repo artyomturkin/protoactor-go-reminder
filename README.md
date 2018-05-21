@@ -49,8 +49,9 @@ func main() {
 
 	rem.Tell(&msgs.Reminder{
 		Receiver: rec,
-		At:	   ti,
-		Name:  "hello",
+		At:	     ti,
+		Name:    "hello",
+		Collate: false,
 	})
 	
 	.....

@@ -36,6 +36,14 @@ func (a *actor) Receive(ctx protoActor.Context) {
 		a.reminds = []*msgs.Reminder{}
 		a.self = ctx.Self()
 	case *msgs.Reminder:
+		if msg.Collate {
+			for i, r := range a.reminds {
+				if r.Name == msg.Name && r.Receiver.Equal(msg.Receiver) && r.Collate {
+					a.reminds = append(a.reminds[:i], a.reminds[i+1:]...)
+				}
+			}
+		}
+
 		first := a.insertRemind(msg)
 
 		if !a.Recovering() {

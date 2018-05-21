@@ -8,6 +8,7 @@ message Reminder {
     actor.PID Receiver = 1;
     google.protobuf.Timestamp At = 2;
     string Name = 3;
+    bool Collate = 4;
 }
 
 message Remind {
