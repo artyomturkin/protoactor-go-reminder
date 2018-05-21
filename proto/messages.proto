@@ -3,12 +3,15 @@ package reminder;
 
 import "actor.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/any.proto";
 
-message Remind {
+message Reminder {
     actor.PID Receiver = 1;
     google.protobuf.Timestamp At = 2;
-    google.protobuf.Any Message = 3;
+    string Name = 3;
+}
+
+message Remind {
+    string Name = 1;
 }
 
 message Reminded {
@@ -16,6 +19,6 @@ message Reminded {
 }
 
 message Snapshot {
-    repeated Remind Reminds = 1;
+    repeated Reminder Reminds = 1;
     google.protobuf.Timestamp At = 2;
 }

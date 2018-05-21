@@ -18,9 +18,11 @@ type receiver struct {
 }
 
 func (r *receiver) Receive(ctx actor.Context) {
-	switch ctx.Message().(type) {
-	case *msgs.Reminded:
-		r.wg.Done()
+	switch msg := ctx.Message().(type) {
+	case *msgs.Remind:
+		if msg.Name == "hello" {
+			r.wg.Done()
+		}
 	}
 }
 
@@ -61,15 +63,14 @@ func TestReminder(t *testing.T) {
 	}
 
 	ti, _ := protoTypes.TimestampProto(time.Now().Add(1 * time.Millisecond))
-	msg, _ := protoTypes.MarshalAny(&msgs.Reminded{At: ti})
 
 	rems := 1
 	wg.Add(rems)
 	for i := 0; i < rems; i++ {
-		rem.Tell(&msgs.Remind{
+		rem.Tell(&msgs.Reminder{
 			Receiver: rec,
 			At:       ti,
-			Message:  msg,
+			Name:     "hello",
 		})
 	}
 	wg.Wait()
@@ -78,10 +79,10 @@ func TestReminder(t *testing.T) {
 	wg.Add(rems)
 	for i := 0; i < rems; i++ {
 		time.Sleep(1 * time.Millisecond)
-		rem.Tell(&msgs.Remind{
+		rem.Tell(&msgs.Reminder{
 			Receiver: rec,
 			At:       ti,
-			Message:  msg,
+			Name:     "hello",
 		})
 	}
 	wg.Wait()

@@ -20,9 +20,9 @@ type receiver struct {
 }
 
 func (r *receiver) Receive(ctx actor.Context) {
-	switch ctx.Message().(type) {
-	case *msgs.Reminded:
-		fmt.Printf("Got a reminder\n")
+	switch msg := ctx.Message().(type) {
+	case *msgs.Remind:
+		fmt.Printf("Got a reminder %s\n", msg.Name)
 		r.wg.Done()
 	}
 }
@@ -68,15 +68,13 @@ func main() {
 
 	//Create timestamp of when reminder should trigger
 	ti, _ := types.TimestampProto(time.Now().Add(1 * time.Millisecond))
-	//Create reminder payload (reusing Reminded message for example)
-	msg, _ := types.MarshalAny(&msgs.Reminded{At: ti})
 
 	//Tell reminder actor to handle reminder. Use waitgroup to sync with receiver actor
 	wg.Add(1)
-	rem.Tell(&msgs.Remind{
+	rem.Tell(&msgs.Reminder{
 		Receiver: rec,
 		At:       ti,
-		Message:  msg,
+		Name:     "hello",
 	})
 	wg.Wait()
 
@@ -85,5 +83,5 @@ func main() {
 	rem.GracefulPoison()
 
 	// Output:
-	// Got a reminder
+	// Got a reminder hello
 }

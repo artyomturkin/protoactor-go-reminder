@@ -30,15 +30,13 @@ func main() {
 }
 ```
 
-Use `import "github.com/gogo/protobuf/types"` package to create reminder time and payload
+Use `import "github.com/gogo/protobuf/types"` package to create reminder time
 ```go
 func main() {
 	.....
 
 	//Create timestamp of when reminder should trigger
 	ti, _ := types.TimestampProto(time.Now().Add(1 * time.Millisecond))
-	//Create reminder payload (reusing Reminded message for example, receiver actor will receive Reminded object)
-	msg, _ := types.MarshalAny(&msgs.Reminded{At: ti})
 
 	.....
 }
@@ -49,10 +47,10 @@ func main() {
 func main() {
 	.....
 
-	rem.Tell(&msgs.Remind{
+	rem.Tell(&msgs.Reminder{
 		Receiver: rec,
 		At:	   ti,
-		Message:  msg,
+		Name:  "hello",
 	})
 	
 	.....
