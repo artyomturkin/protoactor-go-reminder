@@ -4,15 +4,15 @@ import (
 	"log"
 	"reflect"
 
-	protoActor "github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/AsynkronIT/protoactor-go/actor"
 )
 
 //Middleware middleware
-func Middleware(reminder *protoActor.PID) func(next protoActor.ActorFunc) protoActor.ActorFunc {
-	return func(next protoActor.ActorFunc) protoActor.ActorFunc {
-		return func(ctx protoActor.Context) {
+func Middleware(reminder *actor.PID) func(next actor.ActorFunc) actor.ActorFunc {
+	return func(next actor.ActorFunc) actor.ActorFunc {
+		return func(ctx actor.Context) {
 			switch ctx.Message().(type) {
-			case *protoActor.Started:
+			case *actor.Started:
 				if p, ok := ctx.Actor().(remindable); ok {
 					p.init(ctx.Self(), reminder)
 				} else {

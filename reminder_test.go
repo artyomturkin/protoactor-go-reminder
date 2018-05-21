@@ -9,8 +9,7 @@ import (
 
 	"github.com/AsynkronIT/protoactor-go/actor"
 	reminder "github.com/artyomturkin/protoactor-go-reminder"
-	msgs "github.com/artyomturkin/protoactor-go-reminder/proto"
-	protoTypes "github.com/gogo/protobuf/types"
+	"github.com/gogo/protobuf/types"
 )
 
 type receiver struct {
@@ -24,7 +23,7 @@ var (
 
 func (r *receiver) Receive(ctx actor.Context) {
 	switch msg := ctx.Message().(type) {
-	case *msgs.Remind:
+	case *reminder.Remind:
 		if msg.Name == "hello" {
 			mu.Lock()
 			counter = counter + 1
@@ -70,12 +69,12 @@ func TestReminder(t *testing.T) {
 		t.Fatalf("failed to spawn receiver: %v", err)
 	}
 
-	ti, _ := protoTypes.TimestampProto(time.Now().Add(1 * time.Millisecond))
+	ti, _ := types.TimestampProto(time.Now().Add(1 * time.Millisecond))
 
 	rems := 1
 	wg.Add(rems)
 	for i := 0; i < rems; i++ {
-		rem.Tell(&msgs.Reminder{
+		rem.Tell(&reminder.Reminder{
 			Receiver: rec,
 			At:       ti,
 			Name:     "hello",
@@ -87,7 +86,7 @@ func TestReminder(t *testing.T) {
 	wg.Add(rems)
 	for i := 0; i < rems; i++ {
 		time.Sleep(1 * time.Millisecond)
-		rem.Tell(&msgs.Reminder{
+		rem.Tell(&reminder.Reminder{
 			Receiver: rec,
 			At:       ti,
 			Name:     "hello",
@@ -101,8 +100,8 @@ func TestReminder(t *testing.T) {
 	wg.Add(1)
 	for i := 0; i < rems; i++ {
 		time.Sleep(1 * time.Millisecond)
-		ti, _ = protoTypes.TimestampProto(time.Now().Add(1 * time.Millisecond))
-		rem.Tell(&msgs.Reminder{
+		ti, _ = types.TimestampProto(time.Now().Add(1 * time.Millisecond))
+		rem.Tell(&reminder.Reminder{
 			Receiver: rec,
 			At:       ti,
 			Name:     "hello",
