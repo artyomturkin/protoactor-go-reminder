@@ -23,7 +23,7 @@ type ExampleMessage struct{}
 func (r *exampleActor) Receive(ctx actor.Context) {
 	switch msg := ctx.Message().(type) {
 	case *ExampleMessage:
-		r.RemindMe("hello", time.Now().Add(1*time.Millisecond), false)
+		r.RemindMe("hello", 1*time.Millisecond, false)
 	case *msgs.Remind:
 		if msg.Name == "hello" {
 			fmt.Printf("Received reminder %s\n", msg.Name)

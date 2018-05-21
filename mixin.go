@@ -10,7 +10,7 @@ import (
 
 type remindable interface {
 	init(self, reminder *protoActor.PID)
-	RemindMe(string, time.Time, bool)
+	RemindMe(string, time.Duration, bool)
 }
 
 //Mixin provides reminder service to actor
@@ -27,8 +27,8 @@ func (m *Mixin) init(self, reminder *protoActor.PID) {
 }
 
 //RemindMe set reminder
-func (m *Mixin) RemindMe(name string, at time.Time, collate bool) {
-	ti, _ := protoTypes.TimestampProto(at)
+func (m *Mixin) RemindMe(name string, in time.Duration, collate bool) {
+	ti, _ := protoTypes.TimestampProto(time.Now().Add(in))
 
 	m.remActor.Tell(&msgs.Reminder{
 		Receiver: m.self,

@@ -20,7 +20,7 @@ type testActor struct {
 func (r *testActor) Receive(ctx actor.Context) {
 	switch msg := ctx.Message().(type) {
 	case *Setup:
-		r.RemindMe("hello", time.Now().Add(1*time.Millisecond), false)
+		r.RemindMe("hello", 1*time.Millisecond, false)
 	case *msgs.Remind:
 		if msg.Name == "hello" {
 			r.wg.Done()
